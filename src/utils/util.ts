@@ -17,3 +17,4 @@ export const isEmpty = (value: string | number | object): boolean => {
     return false;
   }
 };
+

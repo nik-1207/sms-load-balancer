@@ -1,9 +1,11 @@
-import { IsArray, IsEmail, IsString } from 'class-validator';
+import { IsArray, IsEmail, IsPhoneNumber, IsString } from 'class-validator';
 
-export class CreateUserDto {
-  @IsArray({ each: true })
-  public phoneNumbers: string;
+export class SmsDto {
+  @IsArray()
+  @IsPhoneNumber(undefined, { each: true })
+  public phoneNumbers: Array<string>;
 
-  @IsString()
-  public password: string;
+  @IsArray()
+  @IsString({ each: true })
+  public texts: Array<string>;
 }
