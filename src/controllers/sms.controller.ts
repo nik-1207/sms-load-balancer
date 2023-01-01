@@ -6,14 +6,14 @@ import { NextFunction, Request, Response } from 'express';
 
 class SmsController {
   private loadBalancer: SMSLoadBalancer = new SMSLoadBalancer(
-    [new SMSProvider('Airtel', true, 100), new SMSProvider('JIO', true, 100), new SMSProvider('VI', true, 100)],
+    [new SMSProvider('Airtel', true, 100), new SMSProvider('JIO', false, 100), new SMSProvider('VI', false, 100)],
     1,
   );
 
   public send = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const messages: Message[] = req.body.messages;
-      const messageStatus: messageResponse = await this.loadBalancer.sendSMS(messages);
+      const messageStatus: messageResponse = await this.loadBalancer.sendSMSWithLoadBalancing(messages);
       res.send(messageStatus);
     } catch (error) {
       next(error);

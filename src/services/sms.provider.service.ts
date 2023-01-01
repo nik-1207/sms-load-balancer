@@ -1,11 +1,12 @@
 import Message from '@/dtos/message.dto';
 import { logger } from '@/utils/logger';
-import { num } from 'envalid';
 
 export default class SMSProvider {
   private name: string;
   private availability: boolean;
-  private throughput: number; // throughput in SMS per minute
+
+  // throughput in SMS per minute
+  private throughput: number;
 
   constructor(name: string, availability: boolean, throughput: number) {
     this.name = name;
@@ -21,8 +22,10 @@ export default class SMSProvider {
     return this.throughput * interval;
   }
 
-  public async sendSMS(message: Message[]) {
+  public async sendSMS(message: Message[]): Promise<void> {
     logger.info(`${message.length}------------${this.name}`);
   }
-  public getProviderName = () => this.name;
+  public getProviderName = (): string => {
+    return this.name;
+  };
 }

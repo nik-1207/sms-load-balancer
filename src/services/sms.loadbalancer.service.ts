@@ -1,5 +1,6 @@
 import Message from '@/dtos/message.dto';
 import { HttpException } from '@/exceptions/HttpException';
+import { logger } from '@/utils/logger';
 import { messageResponse } from '@interfaces/common.interface';
 import SMSProvider from './sms.provider.service';
 
@@ -14,10 +15,10 @@ export default class SMSLoadBalancer {
     this.interval = interval;
   }
 
-  public async sendSMS(messages: Message[]): Promise<messageResponse> {
+  public async sendSMSWithLoadBalancing(messages: Message[]): Promise<messageResponse> {
     const availableProviders: SMSProvider[] = this.providers.filter(provider => provider.isAvailable());
+    // store and forward if all providers are down
     if (availableProviders.length === 0) {
-      // store and forward if all providers are down
       messages.forEach((message: Message) => {
         this.buffer.push(message);
       });
@@ -31,12 +32,14 @@ export default class SMSLoadBalancer {
         }),
       );
     }
+    // send using available provider if only one is available
     if (availableProviders.length === 1) {
-      // send using available provider if only one is available
       const throughput: number = this.calculateThroughput();
       const provider: SMSProvider = availableProviders[0];
       const chunk: Message[] = messages.slice(0, throughput);
+      //send maximum amount messages possible
       await provider.sendSMS(chunk);
+      //store undelivered messages into buffer
       if (chunk.length < messages.length) {
         const remaining: Message[] = messages.slice(chunk.length, messages.length);
         remaining.forEach((message: Message) => {
@@ -59,17 +62,20 @@ export default class SMSLoadBalancer {
         storedInBuffer: messages.length - chunk.length,
       };
     }
-    let totalSendMessage: number = 0;
+    //weighted round robin for load balancing between multiple provider
+    let sentMessages: number = 0;
     availableProviders.forEach(async (provider: SMSProvider, index: number) => {
       const chunkSize: number = messages.length * (provider.getThroughputPerInterval(this.interval) / this.calculateThroughput());
       const startIndex: number = index * chunkSize;
       const endIndex: number = startIndex + chunkSize;
       const chunk: Message[] = messages.slice(startIndex, endIndex);
-      totalSendMessage += chunk.length;
+      sentMessages += chunk.length;
+      //send maximum amount messages possible
       await provider.sendSMS(chunk);
     });
-    if (totalSendMessage < messages.length) {
-      const remaining: Message[] = messages.slice(totalSendMessage, messages.length);
+    //store undelivered messages into buffer
+    if (sentMessages < messages.length) {
+      const remaining: Message[] = messages.slice(sentMessages, messages.length);
       remaining.forEach((message: Message) => {
         this.buffer.push(message);
       });
@@ -77,17 +83,17 @@ export default class SMSLoadBalancer {
         503,
         JSON.stringify({
           totalMessages: messages.length,
-          sent: totalSendMessage,
-          unsent: messages.length - totalSendMessage,
-          storedInBuffer: messages.length - totalSendMessage,
+          sent: sentMessages,
+          unsent: messages.length - sentMessages,
+          storedInBuffer: messages.length - sentMessages,
         }),
       );
     }
     return {
       totalMessages: messages.length,
-      sent: totalSendMessage,
-      unsent: messages.length - totalSendMessage,
-      storedInBuffer: messages.length - totalSendMessage,
+      sent: sentMessages,
+      unsent: messages.length - sentMessages,
+      storedInBuffer: messages.length - sentMessages,
     };
   }
 

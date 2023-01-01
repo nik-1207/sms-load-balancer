@@ -3,7 +3,7 @@ import { IsPhoneNumber, IsString } from 'class-validator';
 
 export default class Message {
   @Transform(value => value.toString(), { toPlainOnly: true })
-  @IsPhoneNumber('IN')
+  @IsPhoneNumber()
   phoneNumber: string;
 
   @IsString()
