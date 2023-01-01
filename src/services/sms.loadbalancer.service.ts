@@ -7,7 +7,7 @@ import SMSProvider from './sms.provider.service';
 export default class SMSLoadBalancer {
   private providers: SMSProvider[];
   private interval: number; // interval in minutes to calculate throughput
-  private buffer: Message[]; // buffer to store and forward SMS if all providers are down
+  public buffer: Message[]; // buffer to store and forward SMS if all providers are down
 
   constructor(providers: SMSProvider[], interval: number) {
     this.providers = providers;

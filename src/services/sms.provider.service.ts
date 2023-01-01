@@ -22,8 +22,9 @@ export default class SMSProvider {
     return this.throughput * interval;
   }
 
-  public async sendSMS(message: Message[]): Promise<void> {
-    logger.info(`${message.length}------------${this.name}`);
+  public async sendSMS(messages: Message[]): Promise<number> {
+    // logger.info(`${messages.length}------------${this.name}`);
+    return messages.length;
   }
   public getProviderName = (): string => {
     return this.name;

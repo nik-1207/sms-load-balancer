@@ -5,7 +5,7 @@ import SMSProvider from '@/services/sms.provider.service';
 import { NextFunction, Request, Response } from 'express';
 
 class SmsController {
-  private loadBalancer: SMSLoadBalancer = new SMSLoadBalancer(
+  public loadBalancer: SMSLoadBalancer = new SMSLoadBalancer(
     [new SMSProvider('Airtel', true, 100), new SMSProvider('JIO', false, 100), new SMSProvider('VI', false, 100)],
     1,
   );
