@@ -62,9 +62,9 @@ class App {
     const options = {
       swaggerDefinition: {
         info: {
-          title: 'REST API',
+          title: ' SMS API',
           version: '1.0.0',
-          description: 'Example docs',
+          description: 'An API for sending SMS messages through various providers',
         },
       },
       apis: ['swagger.yaml'],
