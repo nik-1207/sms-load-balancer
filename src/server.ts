@@ -1,9 +1,10 @@
+import 'reflect-metadata';
 import App from '@/app';
-import IndexRoute from '@routes/index.route';
+import SmsRoute from '@/routes/sms.route';
 import validateEnv from '@utils/validateEnv';
 
 validateEnv();
 
-const app = new App([new IndexRoute()]);
+const app = new App([new SmsRoute()]);
 
 app.listen();

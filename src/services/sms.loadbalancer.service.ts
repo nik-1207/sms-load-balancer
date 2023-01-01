@@ -1,60 +1,65 @@
+import Message from '@/dtos/message.dto';
+import { HttpException } from '@/exceptions/HttpException';
+import { logger } from '@/utils/logger';
+import { debug } from 'console';
 import SMSProvider from './sms.provider.service';
 
 export default class SMSLoadBalancer {
   private providers: SMSProvider[];
   private interval: number; // interval in minutes to calculate throughput
-  private buffer: { [key: string]: string[] }; // buffer to store and forward SMS if all providers are down
+  private buffer: Message[]; // buffer to store and forward SMS if all providers are down
 
   constructor(providers: SMSProvider[], interval: number) {
     this.providers = providers;
-    this.buffer = {};
+    this.buffer = [];
+    this.interval = interval;
   }
 
-  public async sendSMS(phoneNumbers: string[], texts: Array<string>) {
-    const recipients = phoneNumbers.length;
-    const throughput = this.calculateThroughput();
-    const intervals = Math.ceil(recipients / throughput);
-    const chunkSize = Math.floor(recipients / intervals);
-
-    for (let i = 0; i < intervals; i++) {
-      const startIndex = i * chunkSize;
-      const endIndex = startIndex + chunkSize;
-      const chunk = phoneNumbers.slice(startIndex, endIndex);
-      await this.sendSMSChunk(chunk, texts);
-    }
-  }
-
-  private async sendSMSChunk(phoneNumbers: string[], texts: Array<string>) {
+  public async sendSMS(messages: Message[]) {
     const availableProviders = this.providers.filter(provider => provider.isAvailable());
-
     if (availableProviders.length === 0) {
       // store and forward if all providers are down
-      phoneNumbers.forEach((phoneNumber, index) => {
-        if (!this.buffer[phoneNumber]) {
-          this.buffer[phoneNumber] = [];
-        }
-        this.buffer[phoneNumber].push(texts[index]);
+      messages.forEach(message => {
+        this.buffer.push(message);
       });
-      return;
+      throw new HttpException(
+        503,
+        JSON.stringify({
+          totalMessages: messages.length,
+          sent: 0,
+          unsent: messages.length,
+          storedInBuffer: messages.length,
+        }),
+      );
     }
-
     if (availableProviders.length === 1) {
       // send using available provider if only one is available
+      const throughput = this.calculateThroughput();
       const provider = availableProviders[0];
-      await provider.sendSMS(phoneNumbers, texts);
-      return;
+      const chunk = messages.slice(0, throughput);
+      await provider.sendSMS(chunk);
+      return {
+        totalMessages: messages.length,
+        sent: chunk,
+        unsent: 0,
+        storedInBuffer: 0,
+      };
     }
-
-    // load balance between available providers
-    const chunkSize = Math.floor(phoneNumbers.length / availableProviders.length);
-
-    availableProviders.forEach((provider, index) => {
-      console.log('***************** ' + provider.getProviderName() + ' *****************');
+    let totalSendMessage = 0;
+    availableProviders.forEach(async (provider, index) => {
+      const chunkSize = messages.length * (provider.getThroughputPerInterval(this.interval) / this.calculateThroughput());
       const startIndex = index * chunkSize;
       const endIndex = startIndex + chunkSize;
-      const chunk = phoneNumbers.slice(startIndex, endIndex);
-      provider.sendSMS(chunk, texts);
+      const chunk = messages.slice(startIndex, endIndex);
+      totalSendMessage = chunk.length;
+      await provider.sendSMS(chunk);
     });
+    return {
+      totalMessages: messages.length,
+      sent: totalSendMessage,
+      unsent: 0,
+      storedInBuffer: 0,
+    };
   }
 
   private calculateThroughput(): number {

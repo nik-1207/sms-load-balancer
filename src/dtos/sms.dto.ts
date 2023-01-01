@@ -1,11 +1,10 @@
-import { IsArray, IsEmail, IsPhoneNumber, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, ValidateNested } from 'class-validator';
+import Message from './message.dto';
 
-export class SmsDto {
+export default class SmsDto {
   @IsArray()
-  @IsPhoneNumber(undefined, { each: true })
-  public phoneNumbers: Array<string>;
-
-  @IsArray()
-  @IsString({ each: true })
-  public texts: Array<string>;
+  @ValidateNested({ each: true })
+  @Type(() => Message)
+  messages: Message[];
 }
